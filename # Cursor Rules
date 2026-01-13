@@ -1,0 +1,6 @@
+# Cursor Rules
+- Follow PLAN.md strictly
+- Build one milestone at a time
+- Do not refactor existing code unless explicitly told
+- Do not introduce new libraries
+- Keep changes minimal and localized
