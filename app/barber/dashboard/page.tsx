@@ -109,12 +109,20 @@ export default function BarberDashboardPage() {
       <div className="max-w-4xl mx-auto">
         <div className="mb-6 flex justify-between items-center">
           <h1 className="text-3xl font-bold">Barber Dashboard</h1>
-          <button
-            onClick={handleSignOut}
-            className="text-sm text-gray-600 hover:text-gray-800"
-          >
-            Sign Out
-          </button>
+          <div className="flex gap-4 items-center">
+            <Link
+              href="/barber/schedule"
+              className="text-sm text-gray-600 hover:text-gray-800"
+            >
+              Schedule
+            </Link>
+            <button
+              onClick={handleSignOut}
+              className="text-sm text-gray-600 hover:text-gray-800"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
 
         {error && (

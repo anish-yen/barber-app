@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getBarberId } from '@/lib/getBarberId';
+import { computeScheduleStatus } from '@/lib/schedule';
+import type { HourRow, ClosureRow } from '@/lib/schedule';
 
 export async function GET() {
   try {
@@ -51,6 +54,35 @@ export async function GET() {
     const estimatedWaitLowMinutes = peopleAhead * 30;
     const estimatedWaitHighMinutes = peopleAhead * 40;
 
+    // Get schedule status
+    const barberId = await getBarberId();
+
+    const { data: hours, error: hoursError } = await supabase
+      .from('barber_hours')
+      .select('day_of_week, start_time, end_time, is_open')
+      .eq('barber_id', barberId);
+
+    if (hoursError) {
+      return NextResponse.json({ error: hoursError.message }, { status: 500 });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const { data: closures, error: closuresError } = await supabase
+      .from('barber_closures')
+      .select('date, is_closed, reason')
+      .eq('barber_id', barberId)
+      .eq('is_closed', true)
+      .gte('date', today);
+
+    if (closuresError) {
+      return NextResponse.json({ error: closuresError.message }, { status: 500 });
+    }
+
+    const scheduleStatus = computeScheduleStatus(
+      (hours || []) as HourRow[],
+      (closures || []) as ClosureRow[]
+    );
+
     return NextResponse.json({
       entry,
       position,
@@ -59,10 +91,13 @@ export async function GET() {
       peopleAhead,
       estimatedWaitLowMinutes,
       estimatedWaitHighMinutes,
+      isOpenNow: scheduleStatus.isOpenNow,
+      todayHoursText: scheduleStatus.todayHoursText,
+      nextOpenText: scheduleStatus.nextOpenText,
     });
   } catch (error) {
     return NextResponse.json(
-      { error: 'An unexpected error occurred' },
+      { error: error instanceof Error ? error.message : 'An unexpected error occurred' },
       { status: 500 }
     );
   }

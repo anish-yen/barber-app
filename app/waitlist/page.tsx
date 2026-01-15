@@ -17,6 +17,9 @@ interface WaitlistStatus {
   peopleAhead: number;
   estimatedWaitLowMinutes: number;
   estimatedWaitHighMinutes: number;
+  isOpenNow: boolean;
+  todayHoursText: string;
+  nextOpenText: string;
 }
 
 export default function WaitlistPage() {
@@ -125,7 +128,12 @@ export default function WaitlistPage() {
           router.push('/login');
           return;
         }
-        setError(data.error || 'Failed to join waitlist');
+        if (response.status === 403 && data.error === 'Shop is closed') {
+          // Show closure message from API
+          setError(`${data.error}. ${data.todayHoursText}${data.nextOpenText ? ` • ${data.nextOpenText}` : ''}`);
+        } else {
+          setError(data.error || 'Failed to join waitlist');
+        }
         // If already on waitlist, refresh status
         if (response.status === 400) {
           await fetchStatus();
@@ -191,6 +199,25 @@ export default function WaitlistPage() {
             </button>
           </div>
         </div>
+
+        {/* Open/Closed Banner */}
+        {status && (
+          <div className={`mb-4 p-3 rounded ${
+            status.isOpenNow
+              ? 'bg-green-50 border border-green-200 text-green-800'
+              : 'bg-red-50 border border-red-200 text-red-800'
+          }`}>
+            <div className="font-semibold">
+              {status.isOpenNow ? 'Open now' : 'Closed'}
+            </div>
+            {!status.isOpenNow && (
+              <div className="text-sm mt-1">
+                {status.todayHoursText}
+                {status.nextOpenText && ` • ${status.nextOpenText}`}
+              </div>
+            )}
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 text-red-600 text-sm bg-red-50 p-3 rounded">
@@ -270,7 +297,7 @@ export default function WaitlistPage() {
 
                 <button
                   onClick={handleJoin}
-                  disabled={joining}
+                  disabled={joining || (status && !status.isOpenNow)}
                   className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {joining ? 'Joining...' : 'Join Waitlist'}

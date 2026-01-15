@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { checkAndSendNotifications } from '@/lib/waitlist-notifications';
+import { getBarberId } from '@/lib/getBarberId';
+import { computeScheduleStatus } from '@/lib/schedule';
+import type { HourRow, ClosureRow } from '@/lib/schedule';
 
 export async function POST(request: Request) {
   try {
@@ -14,6 +17,55 @@ export async function POST(request: Request) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check if shop is open
+    const barberId = await getBarberId();
+
+    // Get hours
+    const { data: hours, error: hoursError } = await supabase
+      .from('barber_hours')
+      .select('day_of_week, start_time, end_time, is_open')
+      .eq('barber_id', barberId);
+
+    if (hoursError) {
+      return NextResponse.json(
+        { error: hoursError.message },
+        { status: 500 }
+      );
+    }
+
+    // Get closures for today
+    const today = new Date().toISOString().split('T')[0];
+    const { data: closures, error: closuresError } = await supabase
+      .from('barber_closures')
+      .select('date, is_closed, reason')
+      .eq('barber_id', barberId)
+      .eq('is_closed', true)
+      .gte('date', today);
+
+    if (closuresError) {
+      return NextResponse.json(
+        { error: closuresError.message },
+        { status: 500 }
+      );
+    }
+
+    // Compute schedule status
+    const scheduleStatus = computeScheduleStatus(
+      (hours || []) as HourRow[],
+      (closures || []) as ClosureRow[]
+    );
+
+    if (!scheduleStatus.isOpenNow) {
+      return NextResponse.json(
+        {
+          error: 'Shop is closed',
+          todayHoursText: scheduleStatus.todayHoursText,
+          nextOpenText: scheduleStatus.nextOpenText,
+        },
+        { status: 403 }
+      );
     }
 
     // Get request body
