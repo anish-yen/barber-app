@@ -50,33 +50,34 @@ export function QueueTable({
     entry.position ?? idx + 1;
 
   return (
-    <Card className="border-border bg-card">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-lg font-semibold text-foreground">
+    <Card className="border-border bg-card shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b pb-5">
+        <CardTitle className="text-xl font-semibold tracking-tight text-foreground">
           Current Queue
         </CardTitle>
         <Button
           onClick={onServeNext}
           disabled={entries.length === 0}
-          size="sm"
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
+          size="default"
+          className="h-10 px-5 font-semibold shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          title={entries.length === 0 ? "No customers in queue" : "Serve next customer"}
         >
-          <Play className="mr-2 h-4 w-4" />
-          Serve Next
+          <Play className="h-4 w-4" />
+          <span className="ml-2">Serve Next</span>
         </Button>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="p-6">
         {entries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-4 rounded-full bg-secondary p-4">
-              <Users className="h-8 w-8 text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="mb-6 rounded-full bg-muted p-5 shadow-sm">
+              <Users className="h-10 w-10 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-medium text-foreground">
+            <h3 className="text-xl font-semibold text-foreground mb-2">
               Queue is empty
             </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              No customers are currently waiting
+            <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
+              No customers are currently waiting. When customers join the waitlist, they will appear here.
             </p>
           </div>
         ) : (
@@ -113,7 +114,10 @@ export function QueueTable({
                     const isVip = entry.priority_level > 0;
 
                     return (
-                      <TableRow key={entry.id} className="border-border">
+                      <TableRow 
+                        key={entry.id} 
+                        className="border-border transition-colors hover:bg-muted/50"
+                      >
                         <TableCell className="font-mono text-sm text-foreground">
                           #{pos}
                         </TableCell>
@@ -128,11 +132,14 @@ export function QueueTable({
                         </TableCell>
                         <TableCell>
                           {isVip ? (
-                            <Badge className="bg-accent text-accent-foreground">
+                            <Badge 
+                              variant="secondary"
+                              className="bg-amber-100 text-amber-900 border-amber-200 dark:bg-amber-950/50 dark:text-amber-100 dark:border-amber-900/50 font-semibold"
+                            >
                               VIP
                             </Badge>
                           ) : (
-                            <span className="text-muted-foreground">—</span>
+                            <span className="text-xs text-muted-foreground">Normal</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
@@ -142,8 +149,8 @@ export function QueueTable({
                               size="icon"
                               onClick={() => onPromote(entry.id)}
                               disabled={isVip}
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                              title="Promote to VIP"
+                              className="h-8 w-8 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                              title={isVip ? "Already VIP" : "Promote to VIP"}
                             >
                               <ChevronUp className="h-4 w-4" />
                               <span className="sr-only">Promote</span>
@@ -154,8 +161,8 @@ export function QueueTable({
                               size="icon"
                               onClick={() => onDemote(entry.id)}
                               disabled={!isVip}
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                              title="Demote to normal"
+                              className="h-8 w-8 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                              title={!isVip ? "Not VIP" : "Demote to normal"}
                             >
                               <ChevronDown className="h-4 w-4" />
                               <span className="sr-only">Demote</span>
@@ -170,7 +177,7 @@ export function QueueTable({
             </div>
 
             {/* Mobile */}
-            <div className="space-y-3 md:hidden">
+            <div className="space-y-4 md:hidden">
               {entries.map((entry, idx) => {
                 const pos = getPosition(entry, idx);
                 const isVip = entry.priority_level > 0;
@@ -178,15 +185,18 @@ export function QueueTable({
                 return (
                   <div
                     key={entry.id}
-                    className="rounded-lg border border-border bg-secondary/30 p-4"
+                    className="rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow"
                   >
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-medium text-primary">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-mono text-base font-bold text-primary">
                           #{pos}
                         </span>
                         {isVip && (
-                          <Badge className="bg-accent text-accent-foreground">
+                          <Badge 
+                            variant="secondary"
+                            className="bg-amber-100 text-amber-900 border-amber-200 dark:bg-amber-950/50 dark:text-amber-100 dark:border-amber-900/50 font-semibold"
+                          >
                             VIP
                           </Badge>
                         )}
@@ -197,7 +207,8 @@ export function QueueTable({
                           size="icon"
                           onClick={() => onPromote(entry.id)}
                           disabled={isVip}
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          className="h-8 w-8 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={isVip ? "Already VIP" : "Promote to VIP"}
                         >
                           <ChevronUp className="h-4 w-4" />
                         </Button>
@@ -206,16 +217,17 @@ export function QueueTable({
                           size="icon"
                           onClick={() => onDemote(entry.id)}
                           disabled={!isVip}
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          className="h-8 w-8 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={!isVip ? "Not VIP" : "Demote to normal"}
                         >
                           <ChevronDown className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <p className="text-sm text-foreground">{entry.email}</p>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-foreground">{entry.email}</p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span>Party: {entry.guest_count}</span>
                         <span>•</span>
                         <span>Joined: {formatTime(entry.joined_at)}</span>

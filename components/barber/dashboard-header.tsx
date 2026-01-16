@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 
 export function DashboardHeader() {
   const handleSignOut = async () => {
-    // Change this path if your app uses a different logout route
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/login";
+    // Use Supabase client to sign out (matches existing app pattern)
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/";
   };
 
   return (

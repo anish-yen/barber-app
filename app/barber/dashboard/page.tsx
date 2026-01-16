@@ -2,17 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
-
-interface QueueEntry {
-  id: string;
-  customer_id: string;
-  email: string;
-  guest_count: number;
-  joined_at: string;
-  priority_level: number;
-}
+import { DashboardHeader } from '@/components/barber/dashboard-header';
+import { StatsRow } from '@/components/barber/stats-row';
+import { QueueTable, type QueueEntry } from '@/components/barber/queue-table';
 
 export default function BarberDashboardPage() {
   const [entries, setEntries] = useState<QueueEntry[]>([]);
@@ -20,7 +12,6 @@ export default function BarberDashboardPage() {
   const [serving, setServing] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
-  const supabase = createClient();
 
   const fetchQueue = async () => {
     try {
@@ -84,7 +75,7 @@ export default function BarberDashboardPage() {
     }
   };
 
-  const handlePromote = async (entryId: string, priorityLevel: number) => {
+  const handlePromote = async (entryId: string) => {
     try {
       setError('');
       const response = await fetch('/api/waitlist/promote', {
@@ -94,7 +85,7 @@ export default function BarberDashboardPage() {
         },
         body: JSON.stringify({
           entry_id: entryId,
-          priority_level: priorityLevel,
+          priority_level: 1,
         }),
       });
 
@@ -116,153 +107,90 @@ export default function BarberDashboardPage() {
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-    router.refresh();
-  };
+  const handleDemote = async (entryId: string) => {
+    try {
+      setError('');
+      const response = await fetch('/api/waitlist/promote', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          entry_id: entryId,
+          priority_level: 0,
+        }),
+      });
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          router.push('/login');
+          return;
+        }
+        setError(data.error || 'Failed to update priority');
+        return;
+      }
+
+      // Refresh queue after demotion
+      await fetchQueue();
+    } catch (err) {
+      setError('Failed to update priority');
+    }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-8">
-        <div className="text-center">
-          <p className="text-gray-600">Loading queue...</p>
-        </div>
+      <div className="min-h-screen bg-muted/30">
+        <DashboardHeader />
+        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-24 bg-muted rounded-xl shadow-sm"></div>
+                </div>
+              ))}
+            </div>
+            <div className="animate-pulse">
+              <div className="h-96 bg-muted rounded-xl shadow-sm"></div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6 flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Barber Dashboard</h1>
-          <div className="flex gap-4 items-center">
-            <Link
-              href="/barber/schedule"
-              className="text-sm text-gray-600 hover:text-gray-800"
-            >
-              Schedule
-            </Link>
-            <button
-              onClick={handleSignOut}
-              className="text-sm text-gray-600 hover:text-gray-800"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
+  // Calculate total people from entries
+  const totalPeople = entries.reduce((sum, entry) => sum + entry.guest_count, 0);
+  const totalParties = entries.length;
 
+  return (
+    <div className="min-h-screen bg-muted/30">
+      <DashboardHeader />
+
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {error && (
-          <div className="mb-4 text-red-600 text-sm bg-red-50 p-3 rounded">
+          <div className="mb-4 rounded-xl bg-red-50 p-4 text-red-900 dark:bg-red-950/50 dark:text-red-100">
             {error}
           </div>
         )}
 
-        <div className="mb-4 flex justify-between items-center">
-          <h2 className="text-xl font-semibold">
-            Queue ({entries.length} {entries.length === 1 ? 'customer' : 'customers'})
-          </h2>
-          <button
-            onClick={handleServeNext}
-            disabled={serving || entries.length === 0}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {serving ? 'Serving...' : 'Serve Next'}
-          </button>
-        </div>
+        <StatsRow
+          totalPeople={totalPeople}
+          totalParties={totalParties}
+          estWaitPerPersonText="~30 min"
+        />
 
-        {entries.length === 0 ? (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-            <p className="text-gray-600">No customers in the queue</p>
-          </div>
-        ) : (
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Position
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Priority
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Guests
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Joined At
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {entries.map((entry, index) => (
-                  <tr key={entry.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {index + 1}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {entry.priority_level > 0 ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          VIP ({entry.priority_level})
-                        </span>
-                      ) : (
-                        <span className="text-gray-500">Normal</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {entry.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {entry.guest_count}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(entry.joined_at)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {entry.priority_level > 0 ? (
-                        <button
-                          onClick={() => handlePromote(entry.id, 0)}
-                          className="text-blue-600 hover:text-blue-900 mr-2"
-                        >
-                          Demote
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handlePromote(entry.id, 1)}
-                          className="text-yellow-600 hover:text-yellow-900"
-                        >
-                          Promote
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <div className="mt-8 text-center">
-          <Link
-            href="/"
-            className="text-sm text-gray-600 hover:text-gray-800"
-          >
-            Back to home
-          </Link>
+        <div className="mt-6">
+          <QueueTable
+            entries={entries}
+            onPromote={handlePromote}
+            onDemote={handleDemote}
+            onServeNext={handleServeNext}
+          />
         </div>
-      </div>
+      </main>
     </div>
   );
 }
