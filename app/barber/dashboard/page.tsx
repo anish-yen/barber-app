@@ -11,6 +11,7 @@ interface QueueEntry {
   email: string;
   guest_count: number;
   joined_at: string;
+  priority_level: number;
 }
 
 export default function BarberDashboardPage() {
@@ -80,6 +81,38 @@ export default function BarberDashboardPage() {
       setError('Failed to serve customer');
     } finally {
       setServing(false);
+    }
+  };
+
+  const handlePromote = async (entryId: string, priorityLevel: number) => {
+    try {
+      setError('');
+      const response = await fetch('/api/waitlist/promote', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          entry_id: entryId,
+          priority_level: priorityLevel,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          router.push('/login');
+          return;
+        }
+        setError(data.error || 'Failed to update priority');
+        return;
+      }
+
+      // Refresh queue after promotion
+      await fetchQueue();
+    } catch (err) {
+      setError('Failed to update priority');
     }
   };
 
@@ -157,6 +190,9 @@ export default function BarberDashboardPage() {
                     Position
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Priority
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -164,6 +200,9 @@ export default function BarberDashboardPage() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Joined At
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -173,6 +212,15 @@ export default function BarberDashboardPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {index + 1}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {entry.priority_level > 0 ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          VIP ({entry.priority_level})
+                        </span>
+                      ) : (
+                        <span className="text-gray-500">Normal</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {entry.email}
                     </td>
@@ -181,6 +229,23 @@ export default function BarberDashboardPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(entry.joined_at)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {entry.priority_level > 0 ? (
+                        <button
+                          onClick={() => handlePromote(entry.id, 0)}
+                          className="text-blue-600 hover:text-blue-900 mr-2"
+                        >
+                          Demote
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handlePromote(entry.id, 1)}
+                          className="text-yellow-600 hover:text-yellow-900"
+                        >
+                          Promote
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

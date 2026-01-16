@@ -134,8 +134,8 @@ export default function WaitlistPage() {
         } else {
           setError(data.error || 'Failed to join waitlist');
         }
-        // If already on waitlist, refresh status
-        if (response.status === 400) {
+        // If already on waitlist (409 Conflict), refresh status to show current position
+        if (response.status === 409 || response.status === 400) {
           await fetchStatus();
         }
         return;

@@ -27,12 +27,15 @@ export async function POST() {
       return NextResponse.json({ error: 'Forbidden - Barber access required' }, { status: 403 });
     }
 
-    // Find the earliest active entry (first in queue)
+    // Find the next entry to serve using consistent ordering: priority_level DESC, joined_at ASC, id ASC
+    // This ordering must be identical everywhere (status, queue, serve-next) for position accuracy
     const { data: nextEntry, error: findError } = await supabase
       .from('waitlist_entries')
-      .select('id, customer_id, guest_count, joined_at')
+      .select('id, customer_id, guest_count, joined_at, priority_level')
       .is('served_at', null)
+      .order('priority_level', { ascending: false })
       .order('joined_at', { ascending: true })
+      .order('id', { ascending: true })
       .limit(1)
       .maybeSingle();
 

@@ -4,11 +4,12 @@ import { sendWaitlistNotification } from '@/lib/resend';
 export async function checkAndSendNotifications() {
   const supabase = createAdminClient();
 
-  // Get all active entries ordered by joined_at
+  // Get all active entries ordered by priority (higher first), then joined_at (FIFO)
   const { data: allEntries, error: entriesError } = await supabase
     .from('waitlist_entries')
-    .select('id, customer_id, joined_at, notification_sent')
+    .select('id, customer_id, joined_at, notification_sent, priority_level')
     .is('served_at', null)
+    .order('priority_level', { ascending: false })
     .order('joined_at', { ascending: true });
 
   if (entriesError || !allEntries || allEntries.length < 3) return;

@@ -26,12 +26,16 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden - Barber access required' }, { status: 403 });
     }
 
-    // Get all active entries ordered by joined_at (FIFO)
+    // Get all active entries ordered by: priority_level DESC, joined_at ASC, id ASC
+    // This ordering must be identical everywhere (status, queue, serve-next) for consistency
+    // The id ASC ensures stable ordering for entries with same priority and join time
     const { data: entries, error: entriesError } = await supabase
       .from('waitlist_entries')
-      .select('id, customer_id, guest_count, joined_at')
+      .select('id, customer_id, guest_count, joined_at, priority_level')
       .is('served_at', null)
-      .order('joined_at', { ascending: true });
+      .order('priority_level', { ascending: false })
+      .order('joined_at', { ascending: true })
+      .order('id', { ascending: true });
 
     if (entriesError) {
       return NextResponse.json(
@@ -68,6 +72,7 @@ export async function GET() {
       email: emailMap.get(entry.customer_id) || 'Unknown',
       guest_count: entry.guest_count,
       joined_at: entry.joined_at,
+      priority_level: entry.priority_level,
     }));
 
     return NextResponse.json({ entries: formattedEntries });

@@ -39,10 +39,26 @@ export async function GET() {
 
     const admin = createAdminClient();
 
+    // Step 1: Get the user's active entry first (by id, not customer_id)
+    // This ensures we match the exact entry the user owns, avoiding duplicates
+    const { data: userActiveEntry, error: userEntryError } = await supabase
+      .from('waitlist_entries')
+      .select('id, customer_id, guest_count, joined_at, priority_level')
+      .eq('customer_id', user.id)
+      .is('served_at', null)
+      .maybeSingle();
+
+    if (userEntryError) {
+      return NextResponse.json({ error: userEntryError.message }, { status: 500 });
+    }
+
+    // Step 2: Get all active entries ordered by: priority_level DESC, joined_at ASC, id ASC
+    // This ordering must be identical everywhere (status, queue, serve-next) for consistency
     const { data: entries, error: listError } = await admin
       .from('waitlist_entries')
-      .select('id, customer_id, guest_count, joined_at')
+      .select('id, customer_id, guest_count, joined_at, priority_level')
       .is('served_at', null)
+      .order('priority_level', { ascending: false })
       .order('joined_at', { ascending: true })
       .order('id', { ascending: true });
 
@@ -54,8 +70,13 @@ export async function GET() {
     const totalEntries = allEntries.length;
     const totalPeople = allEntries.reduce((sum, e) => sum + e.guest_count, 0);
 
-    const userEntryIndex = allEntries.findIndex((e) => e.customer_id === user.id);
+    // Step 3: Find the user's entry by entry.id (not customer_id) in the ordered list
+    // This ensures accurate position calculation even if multiple entries existed (shouldn't happen due to join check)
+    const userEntryIndex = userActiveEntry
+      ? allEntries.findIndex((e) => e.id === userActiveEntry.id)
+      : -1;
     const entry = userEntryIndex >= 0 ? allEntries[userEntryIndex] : null;
+    // Position is 1-based (index + 1), or null if not in queue
     const position = userEntryIndex >= 0 ? userEntryIndex + 1 : null;
 
     const peopleAhead =

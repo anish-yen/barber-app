@@ -72,27 +72,40 @@ export async function POST(request: Request) {
     const { guest_count } = await request.json();
     const guestCount = guest_count === 2 ? 2 : 1; // Default to 1, only allow 1 or 2
 
-    // Check if user already has an active entry
-    const { data: existingEntry } = await supabase
+    // Enforce: a customer can have at most ONE active waitlist entry (served_at IS NULL)
+    // Check if user already has an active entry before inserting
+    const { data: existingEntry, error: existingError } = await supabase
       .from('waitlist_entries')
-      .select('id, joined_at')
+      .select('id, joined_at, priority_level')
       .eq('customer_id', user.id)
       .is('served_at', null)
       .maybeSingle();
 
-    if (existingEntry) {
+    if (existingError) {
       return NextResponse.json(
-        { error: 'You are already on the waitlist', entry: existingEntry },
-        { status: 400 }
+        { error: existingError.message },
+        { status: 500 }
       );
     }
 
-    // Insert new entry
+    if (existingEntry) {
+      // Return 409 Conflict (not 400) to indicate duplicate active entry
+      return NextResponse.json(
+        { 
+          error: 'You are already on the waitlist', 
+          entry: existingEntry 
+        },
+        { status: 409 }
+      );
+    }
+
+    // Insert new entry (priority_level defaults to 0, barber can promote later)
     const { data: newEntry, error: insertError } = await supabase
       .from('waitlist_entries')
       .insert({
         customer_id: user.id,
         guest_count: guestCount,
+        priority_level: 0,
         notification_sent: false,
       })
       .select()
