@@ -30,7 +30,6 @@ export default function LoginPage() {
         return;
       }
 
-      // Get user role
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -49,7 +48,6 @@ export default function LoginPage() {
 
       const role = profile?.role || 'customer';
 
-      // Redirect based on role
       if (role === 'barber') {
         router.push('/barber/dashboard');
       } else {
@@ -67,6 +65,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-8">
       <div className="max-w-md w-full">
         <h1 className="text-3xl font-bold mb-6 text-center">Login</h1>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-1">
@@ -81,6 +80,7 @@ export default function LoginPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+
           <div>
             <label htmlFor="password" className="block text-sm font-medium mb-1">
               Password
@@ -94,11 +94,13 @@ export default function LoginPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+
           {error && (
             <div className="text-red-600 text-sm bg-red-50 p-3 rounded">
               {error}
             </div>
           )}
+
           <button
             type="submit"
             disabled={loading}
@@ -107,12 +109,14 @@ export default function LoginPage() {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
         <p className="mt-4 text-center text-sm text-gray-600">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/signup" className="text-blue-600 hover:underline">
             Sign up
           </Link>
         </p>
+
         <p className="mt-2 text-center text-sm">
           <Link href="/" className="text-gray-600 hover:underline">
             Back to home
@@ -122,4 +126,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

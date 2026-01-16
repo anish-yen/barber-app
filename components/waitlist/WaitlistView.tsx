@@ -38,22 +38,18 @@ export type WaitlistStatus = {
 };
 
 type Props = {
-  status: WaitlistStatus | null;
-
-  guestCount: number;
-  setGuestCount: (n: number) => void;
-
-  vipCode: string;
-  setVipCode: (s: string) => void;
-
-  onJoin: () => void;
-  onLeave: () => void;
-
-  loading: boolean;
-  error: string | null;
-
-  announcementCount: number;
-};
+    status: WaitlistStatus | null;
+    guestCount: 1 | 2;
+    setGuestCount: React.Dispatch<React.SetStateAction<1 | 2>>;
+    vipCode: string;
+    setVipCode: React.Dispatch<React.SetStateAction<string>>;
+    onJoin: () => void;
+    onLeave: () => void;
+    loading: boolean;
+    error: string | null;
+    announcementCount: number;
+  };
+  
 
 export default function WaitlistView({
   status,
@@ -187,7 +183,7 @@ export default function WaitlistView({
 
                   <Select
                     value={String(guestCount)}
-                    onValueChange={(v) => setGuestCount(Number(v))}
+                    onValueChange={(v) => setGuestCount(Number(v) as 1 | 2)}
                     disabled={!isOpen || loading}
                   >
                     <SelectTrigger className="disabled:opacity-50 disabled:cursor-not-allowed">
@@ -291,7 +287,7 @@ export default function WaitlistView({
                       <div>
                         <span className="font-semibold text-foreground">VIP Priority Enabled</span>
                         <p className="mt-0.5 text-muted-foreground">
-                          You'll be served ahead of normal entries.
+                         You&apos;ll be served ahead of normal entries.
                         </p>
                       </div>
                     </div>
