@@ -5,11 +5,29 @@ import { getBarberId } from '@/lib/getBarberId';
 import { computeScheduleStatus } from '@/lib/schedule';
 import type { HourRow, ClosureRow } from '@/lib/schedule';
 
+export const runtime = 'nodejs';
+
+const SHOP_TZ = process.env.SHOP_TIMEZONE ?? 'America/New_York';
+
+function zonedDateStr(now: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  const y = get('year');
+  const m = get('month');
+  const d = get('day');
+  return `${y}-${m}-${d}`;
+}
+
 export async function GET() {
   try {
     const supabase = await createClient();
 
-    // Auth user (normal session client)
     const {
       data: { user },
       error: authError,
@@ -19,10 +37,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Admin client (bypasses RLS) - SERVER ONLY for global calculations
     const admin = createAdminClient();
 
-    // Get all active entries ordered (stable ordering: joined_at ASC, id ASC)
     const { data: entries, error: listError } = await admin
       .from('waitlist_entries')
       .select('id, customer_id, guest_count, joined_at')
@@ -36,25 +52,23 @@ export async function GET() {
 
     const allEntries = entries || [];
     const totalEntries = allEntries.length;
-
-    // Calculate total people (sum of guest_count)
     const totalPeople = allEntries.reduce((sum, e) => sum + e.guest_count, 0);
 
-    // Find user's entry and position
     const userEntryIndex = allEntries.findIndex((e) => e.customer_id === user.id);
     const entry = userEntryIndex >= 0 ? allEntries[userEntryIndex] : null;
     const position = userEntryIndex >= 0 ? userEntryIndex + 1 : null;
 
-    // Calculate people ahead (sum of guest_count for entries before user)
-    const peopleAhead = userEntryIndex >= 0
-      ? allEntries.slice(0, userEntryIndex).reduce((sum, e) => sum + e.guest_count, 0)
-      : 0;
+    const peopleAhead =
+      userEntryIndex >= 0
+        ? allEntries
+            .slice(0, userEntryIndex)
+            .reduce((sum, e) => sum + e.guest_count, 0)
+        : 0;
 
-    // Calculate wait estimates (30-40 minutes per person)
     const estimatedWaitLowMinutes = peopleAhead * 30;
     const estimatedWaitHighMinutes = peopleAhead * 40;
 
-    // Get schedule status
+    // Schedule status
     const barberId = await getBarberId();
 
     const { data: hours, error: hoursError } = await supabase
@@ -66,13 +80,15 @@ export async function GET() {
       return NextResponse.json({ error: hoursError.message }, { status: 500 });
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    // Use shop-local "today" for closures filtering (avoid UTC day shift)
+    const todayLocal = zonedDateStr(new Date(), SHOP_TZ);
+
     const { data: closures, error: closuresError } = await supabase
       .from('barber_closures')
       .select('date, is_closed, reason')
       .eq('barber_id', barberId)
       .eq('is_closed', true)
-      .gte('date', today);
+      .gte('date', todayLocal);
 
     if (closuresError) {
       return NextResponse.json({ error: closuresError.message }, { status: 500 });
@@ -80,7 +96,9 @@ export async function GET() {
 
     const scheduleStatus = computeScheduleStatus(
       (hours || []) as HourRow[],
-      (closures || []) as ClosureRow[]
+      (closures || []) as ClosureRow[],
+      new Date(),
+      SHOP_TZ
     );
 
     return NextResponse.json({
@@ -97,7 +115,10 @@ export async function GET() {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'An unexpected error occurred' },
+      {
+        error:
+          error instanceof Error ? error.message : 'An unexpected error occurred',
+      },
       { status: 500 }
     );
   }
