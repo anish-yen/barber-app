@@ -1,10 +1,11 @@
-// lib/getBarberId.ts
 export async function getBarberId(): Promise<string> {
-  const envId = process.env.NEXT_PUBLIC_BARBER_ID;
-  if (envId && envId.length > 0) return envId;
+  const barberId = process.env.NEXT_PUBLIC_BARBER_ID;
 
-  // For single-barber MVP we require this to be set in Vercel / .env.local
-  throw new Error(
-    'No barber found. Please set NEXT_PUBLIC_BARBER_ID or create a barber account.'
-  );
+  if (!barberId) {
+    throw new Error(
+      'No barber found. Please set NEXT_PUBLIC_BARBER_ID.'
+    );
+  }
+
+  return barberId;
 }
